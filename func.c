@@ -10,8 +10,14 @@ int insertAfter(positionList_A current, positionList_A newElement){
     return 0;
 }
 
+int initTable(){
+    for (int i = 0; i < TABLE_SIZE; i++){
+        hash_table[i] = NULL;
+    }
+    return 0;
+}
 
-positionList_A scanCountryLine(char* line, positionList_A head, char* fileName){
+positionList_A scanCountryLine(char* line, char* fileName){
     int check = 0;
     char country[MAX_COUNTRY] = {0};
     positionList_A newEl = NULL;
@@ -28,11 +34,41 @@ positionList_A scanCountryLine(char* line, positionList_A head, char* fileName){
         return NULL;
     }
     
-    newEl=SortOnInsert_List(newEl, head);
+    newEl=hash_insert(newEl);
 
     return newEl;
 }
 
+positionList_A hash_insert(positionList_A newEl){
+    int hash_value = hash(newEl->nameCountry_list);
+    positionList_A position = hash_table[hash_value];
+    positionList_A prev_pos = NULL;
+
+    if(hash_table[hash_value]==NULL){
+        hash_table[hash_value] = newEl;
+        return newEl;
+    }
+
+    while(position->next!=NULL){
+        position = position->next;
+    }
+
+    insertAfter(position, newEl);
+
+    return position->next;
+}
+
+int hash(char *countryName){ //vraca redni broj u tablici
+    int value = 0;
+
+    for (int i = 0; i < HASH_CONST; i++){
+        value += countryName[i];
+    }
+
+    value = value % TABLE_SIZE;
+
+    return value;
+}
 
 positionList_A CreateListElement(char* country){
     positionList_A newElement = NULL;
@@ -144,24 +180,27 @@ positionTree_A insertIntoTree(positionTree_A current, positionTree_A newEl){
             current->right=insertIntoTree(current->right, newEl);
         }
         else{
-            printf("TOWN DUPLICATE! Duplicate not stored!\n");
+            printf("'%s' DUPLICATE! Duplicate not stored!\n", newEl->nameTown_tree);
             free(newEl);
         }
     }
     return current;
 }
 
-int printAll(positionList_A head){
-    positionList_A temp = head->next;
-    positionTree_A tempTree = NULL;
-
-    while(temp){
-        printf("\n%s:\n", temp->nameCountry_list);
-        PrintTree(temp->treeRoot);
-        temp = temp->next;
+int printAll_B(){
+    positionList_A temp = NULL;
+    for (int i = 0; i < TABLE_SIZE; i++){
+            if(hash_table[i]!=NULL){
+                temp = hash_table[i];
+                while(temp){
+                    printf("\n%s:\n", temp->nameCountry_list);
+                    PrintTree(temp->treeRoot);
+                    temp = temp->next;
+                }            
+            }
     }
-    return 0;
 }
+
 
 int PrintTree(positionTree_A root){
     if(root!=NULL){
@@ -180,8 +219,9 @@ int PrintTree(positionTree_A root){
     return 0;
 }
 
-int printAllTownsOver(int min_population, char* countryName, positionList_A head){
-    positionList_A temp = head->next;
+int printAllTownsOver_hash(int min_population, char* countryName){
+    int hash_value = hash(countryName);
+    positionList_A temp = hash_table[hash_value];
     int check = 0;
 
     if(temp!=NULL){
@@ -194,12 +234,11 @@ int printAllTownsOver(int min_population, char* countryName, positionList_A head
         }
     }
     else{
-        printf("\nNo countries stored!\n");
+        printf("\nNo such country stored!\n");
         return -2;
     }
-    
     printf("\nAll towns in %s with population over %d:\n", countryName, min_population);
-    check=PrintOnlyTownsOver(min_population, temp->treeRoot);
+    check=PrintOnlyTownsOverFromTree(min_population, temp->treeRoot);
     if(check==0){
         printf("No such towns in %s.\n", countryName);
     }
@@ -207,20 +246,21 @@ int printAllTownsOver(int min_population, char* countryName, positionList_A head
     return 0;
 }
 
-int PrintOnlyTownsOver(int min_population, positionTree_A root){
+int PrintOnlyTownsOverFromTree(int min_population, positionTree_A root){
     int check = 0;
 
     if(root!=NULL){
-        if(root->left!=NULL){
-            check+=PrintOnlyTownsOver(min_population, root->left);
+        if(root->right!=NULL){
+            check+=PrintOnlyTownsOverFromTree(min_population, root->right);
         }
+        
         if(root->num>min_population){
             printf("-%s\n", root->nameTown_tree);
             ++check;
         }
 
-        if(root->right!=NULL){
-            check+=PrintOnlyTownsOver(min_population, root->right);
+        if(root->left!=NULL){
+            check+=PrintOnlyTownsOverFromTree(min_population, root->left);
         }
     }
     else{
@@ -230,15 +270,24 @@ int PrintOnlyTownsOver(int min_population, positionTree_A root){
     return check;
 }
 
+int freeAll_B(){
+    positionList_A listStart = NULL;
 
-int freeAll(positionList_A head){
-    positionList_A temp = head->next;
-    head = head->next;
+    for (int i = 0; i < TABLE_SIZE; i++){
+        if(hash_table[i]!=NULL){
+            listStart = hash_table[i];
+            freeAll_from(listStart);
+        }
+    }
+}
 
-    while(head){
-        head->treeRoot=FreeTree(head->treeRoot);
-        temp = head;
-        head = head->next;
+int freeAll_from(positionList_A first){
+    positionList_A temp = first;
+
+    while(first){
+        first->treeRoot=FreeTree(first->treeRoot);
+        temp = first;
+        first = first->next;
         free(temp);
     }
 }
