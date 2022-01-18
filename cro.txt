@@ -1,0 +1,5 @@
+Zagreb, 700000
+Zagreb, 700000
+Split, 350000
+Rijeka, 100000
+Zadar, 80000
